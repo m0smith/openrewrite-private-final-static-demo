@@ -30,8 +30,8 @@ java {
 }
 
 // Set as appropriate for your organization
-group = "com.yourorg"
-description = "Rewrite recipes."
+group = "com.m0smith"
+description = "Non-overridable methods (private or final) that don’t access instance data can be static to prevent any misunderstanding about the contract of the method."
 
 repositories {
     mavenLocal()
