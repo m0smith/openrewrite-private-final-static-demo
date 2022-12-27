@@ -47,32 +47,34 @@ public class PrivateFinalStaticDemo extends Recipe {
     @Override
     public JavaIsoVisitor<ExecutionContext> getVisitor() {
         return new JavaIsoVisitor<ExecutionContext>() {
+	    /**
+	       Visit every identifier looking for instance varaibles.
+	       If any are found, send a message to the enclosing
+	       method declaration that it references a non-static
+	       varable.
+	     */ 
 	    @Override
 	    public J.Identifier visitIdentifier(J.Identifier identifier, ExecutionContext executionContext) {
 		J.Identifier i = super.visitIdentifier(identifier, executionContext);
 
-		// When a field access is not static, add a message so the method declaration knows it can skip it
+		// When a field access is not static, send a message
+		// so the method declaration knows it can skip it
 		JavaType.Variable ft = i.getFieldType();
-		// if (ft != null) {
-		//     System.out.println("FT: " + ft);
-		//     System.out.println("    OWNER:" + ft.getOwner());
-		//     System.out.println("        CLASS:" + ft.getOwner().getClass().getName());
-		//     // System.out.println(ft.getType());
-		//     System.out.println("    CLASS:" + ft.getClass());
-		//     System.out.println("    FLAGS:" + ft.getFlags());
-		// }
-		
 		if(ft != null &&
 		   !ft.hasFlags(Flag.Static) &&
-		   // This should look something like TypeUtils.isOfType(ft.getOwner(), JavaType.Class)
-		   // Except that doesn't work
+		   // TODO: The following should look something like TypeUtils.isOfType(ft.getOwner(), JavaType.Class)
+		   // Except that doesn't work due to scoping.  I am sure there is something better than this.
 		   "org.openrewrite.java.tree.JavaType$Class".equals(ft.getOwner().getClass().getName()))
 		    {
-			// System.out.println("NONSTATIC: " + ft);
 			getCursor().putMessageOnFirstEnclosing(J.MethodDeclaration.class, "nonstatic", "true");
 		    }		
 		return i;
 	    }
+	    /**
+	       Look for non-static methods that are private or final.
+	       If it hasn't recevied a message that it references to
+	       non-static variable, mark it as static.
+	     */
 	    @Override
 	    public J.MethodDeclaration visitMethodDeclaration(J.MethodDeclaration method, ExecutionContext ec) {
 		J.MethodDeclaration m = super.visitMethodDeclaration(method, ec);
@@ -82,35 +84,22 @@ public class PrivateFinalStaticDemo extends Recipe {
                     return m;
                 }
 
-
 		// If it isn't final or private, ignore it; we are done
                 if (!m.hasModifier(J.Modifier.Type.Private) && !m.hasModifier(J.Modifier.Type.Final)) {
                     return m;
                 }
+
+		// If a "nonstatic" message was received, we are done.
 		String message = getCursor().getMessage("nonstatic");
-		System.out.println("MESSAGE:" + message);
 		if( "true".equals(message)) {
-		    System.out.println("BAIL");
 		    return m;
 		}
-		// // ignore instance fields
-		// J.VariableDeclarations mv = super.visitVariableDeclarations(multiVariable, ec);
-                // if (mv.getVariables().stream().anyMatch(v -> v.isField(getCursor()))) {
-                //     return m;
-                // }
 
-
+		// Looks good, mark it static.
 		J.Modifier modifier =  new J.Modifier(Tree.randomId(), Space.EMPTY, Markers.EMPTY, J.Modifier.Type.Static, Collections.emptyList());
 		m = autoFormat( m.withModifiers( ListUtils.concat(m.getModifiers(), modifier)), ec);
 		return m;
 	    }	
         };
     }
-    
-    // private boolean isDeclaredInForLoopControl(Cursor cursor) {
-    //     return cursor.getParentTreeCursor()
-    // 	    .getValue() instanceof J.ForLoop.Control;
-    // }
-    
-
 }
