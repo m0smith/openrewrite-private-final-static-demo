@@ -115,12 +115,12 @@ class PrivateFinalStaticDemoTest implements RewriteTest {
     }
     @Test
     void addStaticSerializableMethodsInNonSerializableClass() {
-	// NOTE:  This is probably testing something that is really code smell.
-	//        It might be better to let people know they are making a mistake.
+        // NOTE:  This is probably testing something that is really code smell.
+        //        It might be better to let people know they are making a mistake.
         rewriteRun(
             java("""
                  import java.io.*;
-                 class Utilities{
+                 class Utilities {
                      private static String magicWord = "magic";
 
                      private String getMagicWord() {
@@ -131,14 +131,18 @@ class PrivateFinalStaticDemoTest implements RewriteTest {
                          magicWord = value;
                      }
                      
-                     private void writeObject(java.io.ObjectOutputStream out) throws IOException {}
-                     private void readObject(java.io.ObjectInputStream in) throws IOException, ClassNotFoundException {}
+                     private void writeObject(java.io.ObjectOutputStream out) throws IOException {
+                     }
+                     
+                     private void readObject(java.io.ObjectInputStream in) throws IOException, ClassNotFoundException {
+                     }
+                     
                      private void readObjectNoData() throws ObjectStreamException {}
                  }
                  """,
                  """
                  import java.io.*;
-                 class Utilities implements Serializable {
+                 class Utilities {
                      private static String magicWord = "magic";
 
                      private static String getMagicWord() {
@@ -149,9 +153,14 @@ class PrivateFinalStaticDemoTest implements RewriteTest {
                          magicWord = value;
                      }
                      
-                     private static void writeObject(java.io.ObjectOutputStream out) throws IOException {}
-                     private static void readObject(java.io.ObjectInputStream in) throws IOException, ClassNotFoundException {}
-                     private static void readObjectNoData() throws ObjectStreamException {}                 
+                     private static void writeObject(java.io.ObjectOutputStream out) throws IOException {
+                     }
+                     
+                     private static void readObject(java.io.ObjectInputStream in) throws IOException, ClassNotFoundException {
+                     }
+                     
+                     private static void readObjectNoData() throws ObjectStreamException {
+                     }                 
                  }
                  """)
         );
