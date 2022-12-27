@@ -15,8 +15,6 @@
  */
 package com.m0smith;
 
-import lombok.EqualsAndHashCode;
-import lombok.Value;
 import org.openrewrite.*;
 import org.openrewrite.internal.ListUtils;
 import org.openrewrite.java.JavaIsoVisitor;
@@ -25,14 +23,21 @@ import org.openrewrite.java.tree.J;
 import org.openrewrite.java.tree.JavaType;
 import org.openrewrite.java.tree.NameTree;
 import org.openrewrite.java.tree.Space;
+import org.openrewrite.java.tree.TypeTree;
 import org.openrewrite.java.tree.TypeUtils;
 import org.openrewrite.marker.Markers;
 
+import java.util.Arrays;
 import java.util.Collections;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 @Incubating(since = "7.0.0")
-public class PrivateFinalStaticDemo extends Recipe { 
+public class PrivateFinalStaticDemo extends Recipe {
+
+    private static final List<String> SERIALIZABLE_METHODS_LIST = Arrays.asList("readObjectNoData", "readObject", "writeObject");
+    private static final Set<String> SERIALIZABLE_METHODS = new HashSet(SERIALIZABLE_METHODS_LIST);
 
     @Override
     public String getDisplayName() {
@@ -42,6 +47,36 @@ public class PrivateFinalStaticDemo extends Recipe {
     @Override
     public String getDescription() {
         return "Non-overridable methods (`private` or `final`) that don’t access instance  data can be static to prevent any misunderstanding about the contract  of the method.";
+    }
+
+    /**
+       Return true is `md` is declared in a Serializable class.
+    */
+    private boolean isInSerializableClass(Cursor cursor){
+	J.ClassDeclaration cd = cursor.firstEnclosing(J.ClassDeclaration.class);
+	if( cd == null ) {
+	    return false;
+	}
+	List<TypeTree> impls = cd.getImplements();
+	if( impls == null) {
+	    return false;
+	}
+	for(TypeTree impl : impls){
+	    // TODO: This is code smell.  Should be comparing the class not the class name
+	    if( "java.io.Serializable".equals(impl.getType().toString())) {
+		return true;
+	    }
+	}
+	return false;
+    }
+
+    /**
+       Return true is `md` declares one of the Serializable methods.
+       @see https://docs.oracle.com/javase/7/docs/api/java/io/ObjectInputStream.html
+     */
+    private boolean isSerializableMethod(J.MethodDeclaration md) {
+	String name = md.getName().getSimpleName();
+	return SERIALIZABLE_METHODS.contains(name);
     }
 
     @Override
@@ -89,8 +124,16 @@ public class PrivateFinalStaticDemo extends Recipe {
                     return m;
                 }
 
+		Cursor cursor = getCursor();
+		
+		// If the method is a member of the Serialiazable related methods, don't make it static
+		if(isInSerializableClass(cursor) && isSerializableMethod(m)){
+		    System.out.println("SKIPPNG SERIALIZABLE:" + m);
+		    return m;
+		}
+
 		// If a "nonstatic" message was received, we are done.
-		String message = getCursor().getMessage("nonstatic");
+		String message = cursor.getMessage("nonstatic");
 		if( "true".equals(message)) {
 		    return m;
 		}

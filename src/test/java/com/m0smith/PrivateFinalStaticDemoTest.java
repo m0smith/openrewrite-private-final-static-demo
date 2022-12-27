@@ -71,6 +71,49 @@ class PrivateFinalStaticDemoTest implements RewriteTest {
         );
     }
 
+
+    @Test
+    void ignoreSerializableMethods() {
+        rewriteRun(
+            java("""
+                 import java.io.*;
+                 class Utilities implements Serializable {
+                     private static String magicWord = "magic";
+
+                     private String getMagicWord() {
+                         return magicWord;
+                     }
+                     
+                     private void setMagicWord(String value) {
+                         magicWord = value;
+                     }
+                     
+                     private void writeObject(java.io.ObjectOutputStream out) throws IOException {}
+                     private void readObject(java.io.ObjectInputStream in) throws IOException, ClassNotFoundException {}
+                     private void readObjectNoData() throws ObjectStreamException {}
+                 }
+                 """,
+                 """
+                 import java.io.*;
+                 class Utilities implements Serializable {
+                     private static String magicWord = "magic";
+
+                     private static String getMagicWord() {
+                         return magicWord;
+                     }
+                     
+                     private static void setMagicWord(String value) {
+                         magicWord = value;
+                     }
+                     
+                     private void writeObject(java.io.ObjectOutputStream out) throws IOException {}
+                     private void readObject(java.io.ObjectInputStream in) throws IOException, ClassNotFoundException {}
+                     private void readObjectNoData() throws ObjectStreamException {}                 
+                 }
+                 """)
+        );
+    }
+        
     @Test
     void methodsAccessingOnlyStaticsAreMadeStaticOuterClass() {
         rewriteRun(
